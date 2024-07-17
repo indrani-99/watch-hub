@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import {  Route, Routes } from 'react-router-dom';
 
 import './App.css';
 import RightNavbar from './components/structure/RightNavbar';
