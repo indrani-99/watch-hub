@@ -1,4 +1,4 @@
-:root {
+/* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -65,4 +65,40 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+} */
+
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+.left-section, .middle-section, .right-section {
+  height: 100%;
+}
+
+
+/* src/components/Left.css */
+
+.left {
+  width: 20%;
+  background-color: #f8f9fa;
+  padding: 10px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+/* src/components/Middle.css */
+
+.middle {
+  width: 60%;
+  background-color: #ffffff;
+  padding: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+/* src/components/Right.css */
+
+.right {
+  width: 20%;
+  background-color: #f8f9fa;
+  padding: 10px;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
 }
