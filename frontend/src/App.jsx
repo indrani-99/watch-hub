@@ -1,35 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { Link, Routes, Route, useNavigate } from 'react-router-dom';
+import './App.css';
+import Register from './Register';
+import Login from './Login';
+import Logout from './Logout';
+import Home from './Home';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // const navigate = useNavigate(); // useNavigate hook to navigate programmatically
+
+  useEffect(() => {
+    const authStatus = localStorage.getItem('isAuthenticated');
+    if (authStatus === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   return (
     <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <nav>
+        {isAuthenticated ? (
+          <Link to="/logout"></Link>
+        ) : (
+          <>
+            <Link to="/register">Register</Link> /
+            <Link to="/login">Log In</Link>
+          </>
+        )}
+      </nav>
+
+      <Routes>
+        <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
+        <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
+        <Route path="/logout" element={<Logout setIsAuthenticated={setIsAuthenticated} />} />
+        <Route path="/home" element={<Home isAuthenticated={isAuthenticated} />} />
+      </Routes>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
