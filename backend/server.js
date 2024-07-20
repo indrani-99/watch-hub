@@ -1,43 +1,32 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const http = require("http");
-const socketIo = require("socket.io");
+// server.js
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-const port = 3000;
 
-// Middleware
-app.use(bodyParser.json());
+// Serve static files from the "public" directory
+app.use(express.static('public'));
 
-// MongoDB Connection
-mongoose
-  .connect("mongodb://localhost:27017/virtualRoomDB", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log(err));
+// Socket.IO logic
+io.on('connection', (socket) => {
+  console.log('A user connected');
 
-// Routes
-app.use("/api/rooms", require("./routes/rooms"));
-
-// Socket.io Connection
-io.on("connection", (socket) => {
-  console.log("New client connected");
-
-  socket.on("joinRoom", ({ roomId, participant }) => {
-    socket.join(roomId);
-    io.to(roomId).emit("participantJoined", participant);
+  // Handle incoming chat messages
+  socket.on('chat message', (msg) => {
+    io.emit('chat message', msg); // Broadcast message to all clients
   });
 
-  socket.on("disconnect", () => {
-    console.log("Client disconnected");
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Start the server
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
