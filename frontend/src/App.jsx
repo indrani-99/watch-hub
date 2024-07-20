@@ -1,11 +1,13 @@
 // import React from 'react'
 
+import Rickymain from "./components/Rickymain"
 import Main from "./components/structure/Main"
 
 const App = () => {
   return (
     <div>
-      <Main/>
+      <Rickymain />
+      {/* <Main/> */}
     </div>
   )
 }

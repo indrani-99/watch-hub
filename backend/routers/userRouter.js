@@ -49,17 +49,5 @@ userRouter.post("/login", async (req, res) => {
 });
 
 
-// Admin-only route (requires auth middleware)
-userRouter.get("/adminOnlyRoute", auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ message: "Forbidden: Admin access required" });
-        }
-        res.status(200).json({ message: "Admin-only route accessed successfully" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server error" });
-    }
-});
 
 module.exports = userRouter;
