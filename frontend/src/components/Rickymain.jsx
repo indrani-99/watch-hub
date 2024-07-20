@@ -29,7 +29,6 @@ function Rickymain() {
           </>
         )}
       </nav>
-
       <Routes>
         <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
         <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
