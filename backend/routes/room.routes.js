@@ -1,33 +1,31 @@
 const express = require("express");
-const router = express.Router();
-const Room = require("../models/Room");
+const {
+  createRoom,
+  joinRoom,
+  leaveRoom,
+  removeUserFromRoom,
+  getActiveMembersInRoom,
+} = require("../controller/roomHandler");
+const { access } = require("../middleware/access.middleware");
+const { auth } = require("../middleware/auth.middleware");
 
-// Create Room
-router.post("/", async (req, res) => {
-  const { name } = req.body;
-  const newRoom = new Room({ name });
-  await newRoom.save();
-  res.status(201).send(newRoom);
-});
 
-// Join Room
-router.post("/:id/join", async (req, res) => {
-  const { id } = req.params;
-  const { participant } = req.body;
-  const room = await Room.findById(id);
-  if (room) {
-    room.participants.push(participant);
-    await room.save();
-    res.send(room);
-  } else {
-    res.status(404).send("Room not found");
-  }
-});
+const roomRoute = express.Router();
 
-// Get Rooms
-router.get("/", async (req, res) => {
-  const rooms = await Room.find();
-  res.send(rooms);
-});
+roomRoute.post("/create", auth, createRoom);
 
-module.exports = router;
+roomRoute.get("/join/:roomId", auth, joinRoom);
+
+roomRoute.get("/leave/:roomId", auth, leaveRoom);
+
+roomRoute.post(
+  "/remove/:roomId/:userIdToRemove",
+  auth,
+  access(["host"]),
+  removeUserFromRoom
+);
+
+
+roomRoute.get("/room/activeMembers/:roomId", auth, getActiveMembersInRoom);
+
+module.exports = {roomRoute};

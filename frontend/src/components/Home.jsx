@@ -1,5 +1,3 @@
-// home // src/components/HomePage.js
-
 import React from 'react';
 import { Box, Button, Container, Heading, Text, Image, Stack } from '@chakra-ui/react';
 
@@ -52,3 +50,4 @@ function HomePage() {
 }
 
 export default HomePage;
+
