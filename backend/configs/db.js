@@ -1,12 +1,14 @@
+require('dotenv').config();
 const mongoose=require('mongoose');
 
-const connectDatabase=async(url)=>{
+const connectionWithDB=async ()=>{
     try{
-        await mongoose.connect(url)
-        console.log("mongodb connected");
-    }catch(err){
+        await mongoose.connect(process.env.MONGOURI);
+        console.log("Database connected");
+    }
+    catch(err){
         console.log(err);
     }
-
 }
-module.exports=connectDatabase
+
+module.exports={connectionWithDB};
