@@ -5,13 +5,28 @@ async function loadNanoid() {
 }
 // create a room
 const createRoom = async (req, res) => {
-  const hostId = req.user.userId;
-  const hostUsername = req.user.userName;
+  const hostId = req.user.userid;
+  const hostUsername = req.user.username;
   const nanoid = await loadNanoid();
-  const { roomName } = req.body;
-  const roomId = nanoid(10);
+  const { roomname } = req.body;
+  const roomid = nanoid(10);
 
-  if (!roomName || typeof roomName !== "string") {
+  const getActiveRoomOfUser = await RoomModel.find({
+    host: hostId,
+    'roomClosed.closed': false
+  });
+  
+  if (getActiveRoomOfUser.length > 0) {
+    return res.status(403).json({
+      success: false,
+      message: "You already have an active room, so you can't create a new one before closing it.",
+      data: null,
+      error: "You already have an active room, so you can't create a new one before closing it."
+    });
+  }
+  
+
+  if (!roomname || typeof roomname !== "string") {
     return res.status(400).json({
       success: false,
       message: "Invalid room name",
@@ -22,25 +37,26 @@ const createRoom = async (req, res) => {
 
   try {
     const room = new RoomModel({
-      roomId: roomId,
+      roomid: roomid,
       host: hostId,
-      roomName: roomName,
-      roomLink: `${process.env.BASE_URL}/room/${roomId}`,
+      roomname: roomname,
+      roomLink: `${process.env.BASE_URL}/room/${roomid}`,
       members: [
         {
-          userId: hostId,
-          userName: hostUsername,
+          userid: hostId,
+          username: hostUsername,
           role: "host",
           joinedAt: Date.now(),
           timesJoined: 1,
         },
       ],
     });
+    console.log(room);
     await room.save();
     res.status(201).json({
       success: true,
       message: "Room created successfully",
-      data: room.roomId,
+      data: room.roomid,
       error: null,
     });
   } catch (error) {
@@ -57,11 +73,12 @@ const createRoom = async (req, res) => {
 // join a room
 const joinRoom = async (req, res) => {
   try {
-    const { roomId } = req.params;
-    const userId = req.user.userId;
-    const userName = req.user.userName;
+    const { roomid } = req.params;
+    const userid = req.user.userid;
+    const username = req.user.username;
 
-    const room = await RoomModel.findOne({ roomId: roomId });
+    const room = await RoomModel.findOne({ roomid: roomid });
+    console.log(roomid);
     if (!room) {
       return res.status(404).json({
         success: false,
@@ -81,7 +98,7 @@ const joinRoom = async (req, res) => {
     }
 
     const existingMember = room.members.find(
-      (member) => member.userId.toString() === userId
+      (member) => member.userid.toString() === userid
     );
 
     if (existingMember) {
@@ -98,7 +115,7 @@ const joinRoom = async (req, res) => {
       existingMember.leftAt = null;
       existingMember.timesJoined++;
     } else {
-      room.members.push({ userId, userName, joinedAt: Date.now() });
+      room.members.push({ userid, username, joinedAt: Date.now() });
     }
 
     await room.save();
@@ -106,7 +123,7 @@ const joinRoom = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Joined the meeting room successfully",
-      data: room.roomId,
+      data: room.roomid,
       error: false,
     });
   } catch (error) {
@@ -122,11 +139,11 @@ const joinRoom = async (req, res) => {
 // leave a room
 const leaveRoom = async (req, res) => {
   try {
-    const { roomId } = req.params;
-    const userId = req.user.userId;
-    const userName = req.user.userName;
+    const { roomid } = req.params;
+    const userid = req.user.userid;
+    const username = req.user.username;
 
-    const room = await RoomModel.findOne({ roomId: roomId });
+    const room = await RoomModel.findOne({ roomid: roomid });
     if (!room) {
       return res.status(404).json({
         success: false,
@@ -145,7 +162,7 @@ const leaveRoom = async (req, res) => {
       });
     }
 
-    if (room.host.toString() === userId) {
+    if (room.host.toString() === userid) {
       const closeTimestamp = Date.now();
       room.members.forEach((member) => {
         if (member.leftAt == null) {
@@ -160,12 +177,12 @@ const leaveRoom = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Room closed and all members marked as left",
-        data: room.roomId,
+        data: room.roomid,
         error: null,
       });
     } else {
       const existingMember = room.members.find(
-        (member) => member.userId.toString() === userId
+        (member) => member.userid.toString() === userid
       );
       if (!existingMember) {
         return res.status(404).json({
@@ -190,7 +207,7 @@ const leaveRoom = async (req, res) => {
         return res.status(200).json({
           success: true,
           message: "You have left the room",
-          data: room.roomId,
+          data: room.roomid,
           error: null,
         });
       }
@@ -209,9 +226,9 @@ const leaveRoom = async (req, res) => {
 // remove a member from the room
 const removeUserFromRoom = async (req, res) => {
   try {
-    const { roomId, userIdToRemove } = req.params;
+    const { roomid, userIdToRemove } = req.params;
 
-    const room = await RoomModel.findOne({ roomId });
+    const room = await RoomModel.findOne({ roomid });
     if (!room) {
       return res.status(404).json({
         success: false,
@@ -231,7 +248,7 @@ const removeUserFromRoom = async (req, res) => {
     }
 
     const memberToRemove = room.members.find(
-      (member) => member.userId.toString() === userIdToRemove && member.leftAt === null
+      (member) => member.userid.toString() === userIdToRemove && member.leftAt === null
     );
     if (!memberToRemove) {
       return res.status(404).json({
@@ -257,7 +274,7 @@ const removeUserFromRoom = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "User removed from the room successfully",
-      data: room.roomId,
+      data: room.roomid,
       error: null,
     });
   } catch (error) {
@@ -275,10 +292,10 @@ const removeUserFromRoom = async (req, res) => {
 // get active members in the room
 const getActiveMembersInRoom = async (req, res) => {
   try {
-    const { roomId } = req.params;
-    const userId = req.user.userId;
+    const { roomid } = req.params;
+    const userid = req.user.userid;
 
-    const room = await RoomModel.findOne({ roomId });
+    const room = await RoomModel.findOne({ roomid });
     if (!room) {
       return res.status(404).json({
         success: false,
@@ -289,7 +306,7 @@ const getActiveMembersInRoom = async (req, res) => {
     }
 
     const activeMember = room.members.find(
-      (member) => member.userId.toString() === userId && member.leftAt === null
+      (member) => member.userid.toString() === userid && member.leftAt === null
     );
 
     if (!activeMember) {

@@ -6,7 +6,7 @@ import Main from "./components/structure/Main"
 
 
 const App = () => {
-  const [showMain, setShowMain] = useState(false);
+  const [showMain, setShowMain] = useState(true);
 
   return (
    

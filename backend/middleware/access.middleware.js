@@ -3,10 +3,10 @@ const { RoomModel } = require("../models/room.model.js");
 const access = (roles) => {
   return async (req, res, next) => {
     try {
-      const userId = req.user.userid;
+      const userid = req.user.userid;
       const { roomid } = req.params;
 
-      const room = await RoomModel.findOne({ roomId: roomid });
+      const room = await RoomModel.findOne({ roomid: roomid });
 
       if (!room) {
         return res.status(404).json({
@@ -18,7 +18,7 @@ const access = (roles) => {
       }
 
       const member = room.members.find(
-        (member) => member.userId.toString() === userId
+        (member) => member.userid.toString() === userid
       );
 
       if (!member || !roles.includes(member.role)) {

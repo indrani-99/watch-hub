@@ -1,20 +1,16 @@
-//19th July
-
 const mongoose = require("mongoose");
-const shortid = require("shortid");
 
-const shortid = require("shortid");
 
 
 const roomSchema = new mongoose.Schema(
   {
-    roomId: {
+    roomid: {
       type: String,
-      default: shortid.generate,
+      required: true,
       unique: true,
     },
     host: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "User",
       required: true,
     },
@@ -22,7 +18,7 @@ const roomSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    roomName: {
+    roomname: {
       type: String,
       required: true,
     },
@@ -42,11 +38,11 @@ const roomSchema = new mongoose.Schema(
     ],
     members: [
       {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
+        userid: {
+          type: String,
           ref: "User",
         },
-        userName: String,
+        username: String,
         joinedAt: {
           type: Date,
           default: Date.now,

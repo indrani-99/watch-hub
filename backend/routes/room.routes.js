@@ -14,18 +14,18 @@ const roomRoute = express.Router();
 
 roomRoute.post("/create", auth, createRoom);
 
-roomRoute.get("/join/:roomId", auth, joinRoom);
+roomRoute.get("/join/:roomid", auth, joinRoom);
 
-roomRoute.get("/leave/:roomId", auth, leaveRoom);
+roomRoute.get("/leave/:roomid", auth, leaveRoom);
 
 roomRoute.post(
-  "/remove/:roomId/:userIdToRemove",
+  "/remove/:roomid/:userIdToRemove",
   auth,
   access(["host"]),
   removeUserFromRoom
 );
 
 
-roomRoute.get("/room/activeMembers/:roomId", auth, getActiveMembersInRoom);
+roomRoute.get("/room/activeMembers/:roomid", auth, getActiveMembersInRoom);
 
 module.exports = {roomRoute};
