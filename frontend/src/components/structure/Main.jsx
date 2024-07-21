@@ -1,4 +1,4 @@
-// import React from 'react'
+import React, { useState } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import MainContent from './MainContent';
 import Navbar from './Navbar';
@@ -6,6 +6,13 @@ import LeftSide from './LeftSide';
 import RightSide from './RightSide';
 
 const Main = () => {
+  const [videoUrl, setVideoUrl] = useState('');
+  const [isLiveStreaming, setIsLiveStreaming] = useState(false);
+
+  const toggleLiveStreaming = () => {
+    setIsLiveStreaming((prev) => !prev);
+  };
+
   return (
     <Box
       alignItems="center"
@@ -22,11 +29,11 @@ const Main = () => {
         backgroundColor="lightgray"
         textAlign="center"
       >
-        <Navbar />
+        <Navbar setVideoUrl={setVideoUrl} toggleLiveStreaming={toggleLiveStreaming} />
       </Box>
       <Flex justify="space-evenly">
         <LeftSide />
-        <MainContent />
+        <MainContent videoUrl={videoUrl} isLiveStreaming={isLiveStreaming} />
         <RightSide />
       </Flex>
     </Box>
