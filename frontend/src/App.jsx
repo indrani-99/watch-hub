@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@chakra-ui/react';
 import HomePage from './components/Home';
-import Rickymain from "./components/Rickymain"
+// import Rickymain from "./components/Rickymain"
 import Main from "./components/structure/Main"
+import AllRoute from './components/Allroute';
+import Navbar from './components/Navbar';
 
 
 const App = () => {
@@ -11,7 +13,7 @@ const App = () => {
   return (
    
       <div>
-        {showMain ? <Main /> : <HomePage />}
+        {/* {showMain ? <Main /> : <HomePage />}
         <Button 
           colorScheme="teal" 
           onClick={() => setShowMain(!showMain)}
@@ -19,7 +21,8 @@ const App = () => {
         >
           {showMain ? 'Go to HomePage' : 'Go to Main'}
         </Button>
-      <Rickymain />
+      <Rickymain /> */}
+      <AllRoute/>
       </div>
   );
 }

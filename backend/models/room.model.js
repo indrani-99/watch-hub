@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 
-
-
 const roomSchema = new mongoose.Schema(
   {
     roomid: {
@@ -26,16 +24,6 @@ const roomSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
-    messages: [
-      {
-        user: String,
-        message: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
     members: [
       {
         userid: {
@@ -76,6 +64,26 @@ const roomSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-const RoomModel = mongoose.model("Room", roomSchema);
+const userRoomMapSchema = {
+  userid: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  roomdetails: {
+    roomid: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["host", "member"],
+      default: "member",
+    },
+  },
+};
 
-module.exports = { RoomModel };
+const RoomModel = mongoose.model("Room", roomSchema);
+const UserRoomMapModel = mongoose.model("UserRoomMap", userRoomMapSchema);
+
+module.exports = { RoomModel, UserRoomMapModel };
