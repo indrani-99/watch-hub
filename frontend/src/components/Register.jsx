@@ -2,39 +2,45 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './sign_login.css';
+import { Base_url } from '../utils/util';
 
 
 export default function Register({ setIsAuthenticated }) {
-  const [name, setName] = useState('');
+  const [username, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await axios.post('http://localhost:3000/registration', {
-        name,
+      const response = await axios.post(`${Base_url}/user/register`, {
+        username,
         email,
-        password,
+        password
       });
-
-      if (response.status === 201) {
-        setMessage('Thank you for registering successfully!');
+console.log("response",response);
+      if(response.status == 200) {
+        setMessage(response.data.message);
         setName('');
         setEmail('');
         setPassword('');
         navigate('/login'); // Navigate to login page after successful registration
       }
+      else{
+        setMessage(response.data.message);
+      }
     } catch (error) {
-      if (error.response && error.response.status === 409) {
-        setMessage(error.response.data.message); // Assuming backend sends { message: 'User already exists' }
+      if(error.response.data.message) {
+        setMessage(error.response.data.message);
       } else {
         setMessage('Registration failed. Please try again later.');
-        console.error(error);
       }
+
+      
     }
   };
 
@@ -45,7 +51,7 @@ export default function Register({ setIsAuthenticated }) {
         <input
           type="text"
           placeholder="Enter your name"
-          value={name}
+          value={username}
           onChange={(e) => setName(e.target.value)}
           className='signInput'
         /><br />

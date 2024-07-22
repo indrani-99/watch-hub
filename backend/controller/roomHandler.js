@@ -1,58 +1,84 @@
-const { RoomModel } = require("../models/room.model");
+const { RoomModel, UserRoomMapModel } = require("../models/room.model");
+const mongoose = require("mongoose");
+
 async function loadNanoid() {
   const { nanoid } = await import("nanoid");
   return nanoid;
 }
 // create a room
 const createRoom = async (req, res) => {
-  const hostId = req.user.userid;
-  const hostUsername = req.user.username;
-  const nanoid = await loadNanoid();
-  const { roomname } = req.body;
-  const roomid = nanoid(10);
-
-  const getActiveRoomOfUser = await RoomModel.find({
-    host: hostId,
-    'roomClosed.closed': false
-  });
-  
-  if (getActiveRoomOfUser.length > 0) {
-    return res.status(403).json({
-      success: false,
-      message: "You already have an active room, so you can't create a new one before closing it.",
-      data: null,
-      error: "You already have an active room, so you can't create a new one before closing it."
-    });
-  }
-  
-
-  if (!roomname || typeof roomname !== "string") {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid room name",
-      data: null,
-      error: "Room name is required and must be a non-empty string",
-    });
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
+    const hostId = req.user.userid;
+    const hostUsername = req.user.username;
+    const nanoid = await loadNanoid();
+    const roomid = nanoid(10);
+    const { roomname } = req.body;
+
+  
+    if (!roomname || typeof roomname !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid room name",
+        data: null,
+        error: "Room name is required and must be a non-empty string",
+      });
+    }
+
+    const userRoomMapDetails = await UserRoomMapModel.findOne({
+      userid: hostId,
+    }).session(session);
+
+    if (userRoomMapDetails) {
+      const oldRoomDetails = userRoomMapDetails.roomdetails;
+
+      let leaveRoomRes = await leaveRoomUtility(
+        session,
+        oldRoomDetails.roomid,
+        hostId
+      );
+
+      console.log("Leave Result: ", leaveRoomRes);
+
+      if (leaveRoomRes.success) {
+        await UserRoomMapModel.deleteOne({ userid: hostId }).session(session);
+      } else {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          message: `Failed to leave the existing room having roomid ${oldRoomDetails.roomid}`,
+          data: null,
+          error: `Failed to leave the existing room having roomid ${oldRoomDetails.roomid}`,
+        });
+      }
+    }
+
     const room = new RoomModel({
       roomid: roomid,
       host: hostId,
       roomname: roomname,
-      roomLink: `${process.env.BASE_URL}/room/${roomid}`,
-      members: [
-        {
-          userid: hostId,
-          username: hostUsername,
-          role: "host",
-          joinedAt: Date.now(),
-          timesJoined: 1,
-        },
-      ],
+      roomLink: `${process.env.BASE_URL}/room/join/${roomid}`,
+      members: [],
     });
     console.log(room);
-    await room.save();
+    await room.save({ session });
+
+    const userRoomMap = new UserRoomMapModel({
+      userid: hostId,
+      roomdetails: {
+        roomid: roomid,
+        role: "host",
+      },
+    });
+
+    await userRoomMap.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
     res.status(201).json({
       success: true,
       message: "Room created successfully",
@@ -60,6 +86,9 @@ const createRoom = async (req, res) => {
       error: null,
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     console.error("Error creating room:", error.message);
     res.status(500).json({
       success: false,
@@ -72,14 +101,19 @@ const createRoom = async (req, res) => {
 
 // join a room
 const joinRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { roomid } = req.params;
     const userid = req.user.userid;
     const username = req.user.username;
 
-    const room = await RoomModel.findOne({ roomid: roomid });
+    const room = await RoomModel.findOne({ roomid: roomid }).session(session);
     console.log(roomid);
     if (!room) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: "Room not found",
@@ -89,6 +123,8 @@ const joinRoom = async (req, res) => {
     }
 
     if (room.roomClosed.closed) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json({
         success: false,
         message: "Room is closed",
@@ -97,12 +133,39 @@ const joinRoom = async (req, res) => {
       });
     }
 
+    const userRoomMapDetails = await UserRoomMapModel.findOne({
+      userid: userid,
+    }).session(session);
+
+    if (
+      userRoomMapDetails &&
+      userRoomMapDetails.roomdetails.roomid !== roomid
+    ) {
+      const oldRoomDetails = userRoomMapDetails.roomdetails;
+
+      req.params.roomid = oldRoomDetails.roomid;
+      let leaveRoomRes = await leaveRoomUtility(session, roomid, userid);
+
+      if (!leaveRoomRes.success) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          message: `Failed to leave the existing room having roomid ${oldRoomDetails.roomid}`,
+          data: null,
+          error: `Failed to leave the existing room having roomid ${oldRoomDetails.roomid}`,
+        });
+      }
+    }
+
     const existingMember = room.members.find(
       (member) => member.userid.toString() === userid
     );
 
     if (existingMember) {
       if (!existingMember.leftAt) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(200).json({
           success: true,
           message: "You are already in the meeting room",
@@ -114,11 +177,56 @@ const joinRoom = async (req, res) => {
       existingMember.joinedAt = Date.now();
       existingMember.leftAt = null;
       existingMember.timesJoined++;
+
+      await room.save({ session });
+
+      const userRoomMap = new UserRoomMapModel({
+        userid: userid,
+        roomdetails: {
+          roomid: roomid,
+          role: "member",
+        },
+      });
+
+      await userRoomMap.save({ session });
     } else {
-      room.members.push({ userid, username, joinedAt: Date.now() });
+      if (room.host === userid) {
+        room.members.push({
+          userid: userid,
+          username: username,
+          role: "host",
+          joinedAt: Date.now(),
+        });
+        await room.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(200).json({
+          success: true,
+          message: "Joined the meeting room successfully",
+          data: room.roomid,
+          error: null,
+        });
+      } else {
+        room.members.push({ userid, username, joinedAt: Date.now() });
+
+        await room.save({ session });
+
+        const userRoomMap = new UserRoomMapModel({
+          userid: userid,
+          roomdetails: {
+            roomid: roomid,
+            role: "member",
+          },
+        });
+
+        await userRoomMap.save({ session });
+      }
     }
 
-    await room.save();
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
@@ -127,6 +235,9 @@ const joinRoom = async (req, res) => {
       error: false,
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -138,13 +249,18 @@ const joinRoom = async (req, res) => {
 
 // leave a room
 const leaveRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { roomid } = req.params;
     const userid = req.user.userid;
     const username = req.user.username;
 
-    const room = await RoomModel.findOne({ roomid: roomid });
+    const room = await RoomModel.findOne({ roomid: roomid }).session(session);
     if (!room) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: "Room not found",
@@ -154,6 +270,8 @@ const leaveRoom = async (req, res) => {
     }
 
     if (room.roomClosed.closed) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json({
         success: false,
         message: "Room is already closed",
@@ -164,15 +282,23 @@ const leaveRoom = async (req, res) => {
 
     if (room.host.toString() === userid) {
       const closeTimestamp = Date.now();
+      const activeMembersIds = [];
       room.members.forEach((member) => {
         if (member.leftAt == null) {
-          member.leftAt=closeTimestamp;
+          member.leftAt = closeTimestamp;
+          activeMembersIds.push(member.userid);
         }
       });
       room.roomClosed.closed = true;
       room.roomClosed.closedAt = closeTimestamp;
 
-      await room.save();
+      await room.save({ session });
+      await UserRoomMapModel.deleteMany({
+        userid: { $in: activeMembersIds },
+      }).session(session);
+
+      await session.commitTransaction();
+      session.endSession();
 
       return res.status(200).json({
         success: true,
@@ -185,6 +311,8 @@ const leaveRoom = async (req, res) => {
         (member) => member.userid.toString() === userid
       );
       if (!existingMember) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(404).json({
           success: false,
           message: "You are not a member of this room",
@@ -193,6 +321,8 @@ const leaveRoom = async (req, res) => {
         });
       } else {
         if (existingMember.leftAt) {
+          await session.abortTransaction();
+          session.endSession();
           return res.status(409).json({
             success: false,
             message: `You have already left the meeting room at timestamp: ${existingMember.leftAt}`,
@@ -202,7 +332,14 @@ const leaveRoom = async (req, res) => {
         }
 
         existingMember.leftAt = Date.now();
-        await room.save();
+        await room.save({ session });
+
+        await UserRoomMapModel.deleteOne({
+          userid: existingMember.userid,
+        }).session(session);
+
+        await session.commitTransaction();
+        session.endSession();
 
         return res.status(200).json({
           success: true,
@@ -213,6 +350,9 @@ const leaveRoom = async (req, res) => {
       }
     }
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     console.error("Error leaving room:", error.message);
     return res.status(500).json({
       success: false,
@@ -223,68 +363,94 @@ const leaveRoom = async (req, res) => {
   }
 };
 
-// remove a member from the room
-const removeUserFromRoom = async (req, res) => {
+const leaveRoomUtility = async (session, roomid, userid) => {
   try {
-    const { roomid, userIdToRemove } = req.params;
-
-    const room = await RoomModel.findOne({ roomid });
+    const room = await RoomModel.findOne({ roomid: roomid }).session(session);
     if (!room) {
-      return res.status(404).json({
+      return {
         success: false,
         message: "Room not found",
         data: null,
         error: "Room not found",
-      });
+      };
     }
 
     if (room.roomClosed.closed) {
-      return res.status(403).json({
+      return {
         success: false,
         message: "Room is already closed",
         data: null,
         error: "The room has been already closed and is no longer accessible",
-      });
+      };
     }
 
-    const memberToRemove = room.members.find(
-      (member) => member.userid.toString() === userIdToRemove && member.leftAt === null
-    );
-    if (!memberToRemove) {
-      return res.status(404).json({
-        success: false,
-        message: "Member not found in the room",
-        data: null,
-        error: "Member not found",
+    if (room.host.toString() === userid) {
+      const closeTimestamp = Date.now();
+      const activeMembersIds = [];
+      room.members.forEach((member) => {
+        if (member.leftAt == null) {
+          member.leftAt = closeTimestamp;
+          activeMembersIds.push(member.userid);
+        }
       });
+      room.roomClosed.closed = true;
+      room.roomClosed.closedAt = closeTimestamp;
+
+      await room.save({ session });
+      await UserRoomMapModel.deleteMany({
+        userid: { $in: activeMembersIds },
+      }).session(session);
+
+      return {
+        success: true,
+        message: "Room closed and all members marked as left",
+        data: room.roomid,
+        error: null,
+      };
+    } else {
+      const existingMember = room.members.find(
+        (member) => member.userid.toString() === userid
+      );
+      if (!existingMember) {
+        return {
+          success: false,
+          message: "You are not a member of this room",
+          data: null,
+          error: "Member not found",
+        };
+      } else {
+        if (existingMember.leftAt) {
+          return {
+            success: false,
+            message: `You have already left the meeting room at timestamp: ${existingMember.leftAt}`,
+            data: null,
+            error: `Member has already left the meeting room at timestamp: ${existingMember.leftAt}`,
+          };
+        }
+
+        existingMember.leftAt = Date.now();
+        await room.save({ session });
+
+        await UserRoomMapModel.deleteOne({
+          userid: userid,
+        }).session(session);
+
+        return {
+          success: true,
+          message: "You have left the room",
+          data: room.roomid,
+          error: null,
+        };
+      }
     }
-
-    if (memberToRemove.role === "host") {
-      return res.status(404).json({
-        success: false,
-        message: "Host can not be removed from the room",
-        data: null,
-        error: "Host can not be removed from the room",
-      });
-    }
-
-    memberToRemove.leftAt = Date.now();
-    await room.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "User removed from the room successfully",
-      data: room.roomid,
-      error: null,
-    });
   } catch (error) {
-    console.error("Error removing user out of room:", error);
-    return res.status(500).json({
+    console.error("Error leaving room:", error.message);
+    return {
       success: false,
       message: "Internal Server Error",
       data: null,
       error: error.message,
-    });
+    };
   }
 };
 
@@ -344,6 +510,5 @@ module.exports = {
   createRoom,
   joinRoom,
   leaveRoom,
-  removeUserFromRoom,
   getActiveMembersInRoom,
 };

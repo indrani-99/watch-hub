@@ -12,23 +12,23 @@ const MainContent = () => {
   const [selectedVideo, setSelectedVideo] = useState(videos[0].url);
 
   return (
-    <ChakraProvider>
+   
       <Box
         display="flex"
         flexDirection="column"
         justifyContent="space-between"
         alignItems="center"
         width="100%"
-        padding="5"
         bg="pink"
         boxShadow="lg"
         borderRadius="md"
         maxW="container.md"
         mx="auto"
+
       >
         {/* Selected Video */}
-        <AspectRatio ratio={16 / 9} width="90%" mb={4}>
-          <ReactPlayer url={selectedVideo} width="90%" height="100%" />
+        <AspectRatio ratio={16 / 9} width="100%" mb={4}>
+          <ReactPlayer url={selectedVideo} width="100%" height="100%" />
         </AspectRatio>
 
         {/* Video Cards */}
@@ -52,8 +52,11 @@ const MainContent = () => {
           ))}
         </SimpleGrid>
       </Box>
-    </ChakraProvider>
+   
   );
 };
 
 export default MainContent;
+
+
+

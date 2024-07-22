@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:3000"); // Ensure this URL matches your backend server URL
+const socket = io("http://localhost:3000"); 
 
 const RoomList = () => {
   const [rooms, setRooms] = useState([]);
